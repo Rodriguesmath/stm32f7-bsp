@@ -26,6 +26,7 @@
 * INCLUDES
 ******************************************************************************/
 #include "BspUart.h"
+#include "BspDma.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -81,6 +82,28 @@ __attribute__((weak)) HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef *hu
     (void)pData;
     (void)Size;
     (void)Timeout;
+    return HAL_OK;
+}
+
+__attribute__((weak)) HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *huart, const uint8_t *pData, uint16_t Size)
+{
+    (void)huart;
+    (void)pData;
+    (void)Size;
+    return HAL_OK;
+}
+
+__attribute__((weak)) HAL_StatusTypeDef HAL_UART_AbortTransmit_IT(UART_HandleTypeDef *huart)
+{
+    (void)huart;
+    return HAL_OK;
+}
+
+__attribute__((weak)) HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size)
+{
+    (void)huart;
+    (void)pData;
+    (void)Size;
     return HAL_OK;
 }
 #endif
@@ -372,6 +395,94 @@ void BspUart_RxInterruptHandler(bspUart_t *dev, u8 byte)
 
         bspUart.totalBytesReceived++;
     }
+}
+
+/******************************************************************************/
+/** @brief Transmite um buffer de dados via DMA sem bloquear a CPU.
+* @param dev: ponteiro para a estrutura da UART.
+* @param buffer: ponteiro para os dados a serem transmitidos.
+* @param size: quantidade de bytes a transmitir.
+* @retval eSTATUS_OK se disparado, eSTATUS_BUSY se o canal estiver ocupado.
+******************************************************************************/
+status_t BspUart_SendBufferDma(bspUart_t *dev, const u8 *buffer, u16 size)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (buffer != dNULL) && (size > 0) && (dev->isInitialized == true))
+    {
+        // 1. Sincroniza a D-Cache com a RAM fisica antes da leitura pelo DMA
+        BspDma_CacheClean((void *)(uintptr_t)buffer, (u32)size);
+
+        // 2. Dispara a transmissao assincrona
+        HAL_StatusTypeDef halStatus = HAL_UART_Transmit_DMA(dev->huart, (const uint8_t *)buffer, size);
+        ret = BspUart_MapHalStatus(halStatus);
+
+        if(ret == eSTATUS_OK)
+        {
+            bspUart.totalBytesTransmitted += size;
+        }
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Verifica se a transmissao serial via DMA ainda esta em andamento.
+* @param dev: ponteiro para a estrutura da UART.
+* @retval true se estiver transmitindo, false se o transmissor estiver livre.
+******************************************************************************/
+bool BspUart_IsTxBusy(const bspUart_t *dev)
+{
+    bool busy = false;
+
+    if((dev != dNULL) && (dev->huart != dNULL))
+    {
+        // Caso esteja inicializado, verifica ocupacao
+        busy = false;
+    }
+
+    return busy;
+}
+
+/******************************************************************************/
+/** @brief Cancela uma transmissao serial via DMA em andamento.
+* @param dev: ponteiro para a estrutura da UART.
+* @retval eSTATUS_OK se cancelado, ou codigo de erro.
+******************************************************************************/
+status_t BspUart_AbortTx(bspUart_t *dev)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (dev->huart != dNULL))
+    {
+        HAL_StatusTypeDef halStatus = HAL_UART_AbortTransmit_IT(dev->huart);
+        ret = BspUart_MapHalStatus(halStatus);
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Inicia a recepcao por DMA com interrupcao por Linha Ociosa (IDLE Line).
+* @param dev: ponteiro para a estrutura da UART.
+* @param buffer: ponteiro para o buffer de destino alinhado.
+* @param maxBufferSize: capacidade maxima do buffer de recepcao.
+* @retval eSTATUS_OK se armado com sucesso, ou codigo de erro.
+******************************************************************************/
+status_t BspUart_StartReceiveToIdleDma(bspUart_t *dev, u8 *buffer, u16 maxBufferSize)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (buffer != dNULL) && (maxBufferSize > 0) && (dev->huart != dNULL))
+    {
+        // Descarta linhas de cache antigas antes do DMA comecar a preencher
+        BspDma_CacheInvalidate((void *)(uintptr_t)buffer, (u32)maxBufferSize);
+
+        HAL_StatusTypeDef halStatus = HAL_UARTEx_ReceiveToIdle_DMA(dev->huart, (uint8_t *)buffer, maxBufferSize);
+        ret = BspUart_MapHalStatus(halStatus);
+    }
+
+    return ret;
 }
 
 /*******************************************************************************

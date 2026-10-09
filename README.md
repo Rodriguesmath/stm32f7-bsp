@@ -50,10 +50,11 @@ stm32f7-bsp/
 │   ├── LibModel.h         # Template base de header (.h)
 │   └── LibModel.c         # Template base de source (.c)
 ├── Drivers/               # Drivers modulares desacoplados (HAL Wrappers)
-│   ├── BspUart/           # Driver de comunicacao serial (UART/USART)
-│   ├── BspAdc/            # Driver de aquisicao analogica (ADC)
-│   ├── BspDac/            # Driver de conversao digital-analogica (DAC)
-│   └── BspSync/           # Sincronismo e controle fiel ao CMSIS-RTOS v2
+│   ├── BspUart/           # Driver de comunicacao serial (UART/USART) + DMA TX/RX IDLE
+│   ├── BspAdc/            # Driver de aquisicao analogica (ADC) + DMA Streaming
+│   ├── BspDac/            # Driver de conversao digital-analogica (DAC) + DMA Waveforms
+│   ├── BspSync/           # Sincronismo e controle fiel ao CMSIS-RTOS v2
+│   └── BspDma/            # Gerenciador de D-Cache (Cortex-M7), alinhamento 32B e monitoramento
 ├── Bsp/                   # Camada unificada de hardware (Secao 4.12 da Norma)
 │   ├── Bsp.h              # Ponto de acesso unico da aplicacao (Bsp_Init)
 │   └── Bsp.c              # Inicializacoes de baixo nivel e despacho de ISRs

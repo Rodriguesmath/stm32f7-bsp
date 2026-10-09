@@ -7,6 +7,7 @@ INCLUDES = -ICommon \
            -IDrivers/BspAdc \
            -IDrivers/BspDac \
            -IDrivers/BspSync \
+           -IDrivers/BspDma \
            -IBsp \
            -ITemplates
 
@@ -14,6 +15,7 @@ SRCS = Drivers/BspUart/BspUart.c \
        Drivers/BspAdc/BspAdc.c \
        Drivers/BspDac/BspDac.c \
        Drivers/BspSync/BspSync.c \
+       Drivers/BspDma/BspDma.c \
        Bsp/Bsp.c \
        Templates/LibModel.c \
        Examples/main_example.c
@@ -26,7 +28,7 @@ TARGET = bsp_demo
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $(OBJS) -lm
 	@echo "=========================================="
 	@echo " Build concluido com sucesso! (Zero erros)"
 	@echo "=========================================="

@@ -25,6 +25,9 @@
 * INCLUDES
 ******************************************************************************/
 #include "BspDac.h"
+#include "BspDma.h"
+
+#include <math.h>
 
 /*******************************************************************************
 * DEFINES LOCAIS (fixos, apenas auxiliar para calculos)
@@ -81,6 +84,23 @@ __attribute__((weak)) HAL_StatusTypeDef HAL_DAC_SetValue(DAC_HandleTypeDef *hdac
 }
 
 __attribute__((weak)) HAL_StatusTypeDef HAL_DAC_Stop(DAC_HandleTypeDef *hdac, uint32_t Channel)
+{
+    (void)hdac;
+    (void)Channel;
+    return HAL_OK;
+}
+
+__attribute__((weak)) HAL_StatusTypeDef HAL_DAC_Start_DMA(DAC_HandleTypeDef *hdac, uint32_t Channel, uint32_t *pData, uint32_t Length, uint32_t Alignment)
+{
+    (void)hdac;
+    (void)Channel;
+    (void)pData;
+    (void)Length;
+    (void)Alignment;
+    return HAL_OK;
+}
+
+__attribute__((weak)) HAL_StatusTypeDef HAL_DAC_Stop_DMA(DAC_HandleTypeDef *hdac, uint32_t Channel)
 {
     (void)hdac;
     (void)Channel;
@@ -281,6 +301,142 @@ status_t BspDac_Stop(bspDac_t *dev)
         {
             dev->isRunning = false;
         }
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Inicia a transmissao continua de forma de onda analogica via DMA.
+* @param dev: ponteiro para a estrutura do DAC.
+* @param lookupTable: array constante contendo os pontos da onda alinhado a 32 bytes (u16).
+* @param length: quantidade de pontos contidos na tabela.
+* @retval eSTATUS_OK se disparado com sucesso, ou codigo de erro.
+******************************************************************************/
+status_t BspDac_StartWaveformDma(bspDac_t *dev, const u16 *lookupTable, u32 length)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (lookupTable != dNULL) && (length > 0) && (dev->isRunning == true))
+    {
+        // 1. Descarrega a D-Cache da CPU para a RAM fisica antes da leitura pelo DMA
+        BspDma_CacheClean((void *)(uintptr_t)lookupTable, length * sizeof(u16));
+
+        HAL_StatusTypeDef halStatus = HAL_DAC_Start_DMA(dev->hdac, dev->channel, (uint32_t *)(uintptr_t)lookupTable, length, DAC_ALIGN_12B_R);
+        ret = BspDac_MapHalStatus(halStatus);
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Encerra a geracao continua de forma de onda via DMA.
+* @param dev: ponteiro para a estrutura do DAC.
+* @retval eSTATUS_OK se encerrado, ou codigo de erro.
+******************************************************************************/
+status_t BspDac_StopWaveformDma(bspDac_t *dev)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (dev->hdac != dNULL))
+    {
+        HAL_StatusTypeDef halStatus = HAL_DAC_Stop_DMA(dev->hdac, dev->channel);
+        ret = BspDac_MapHalStatus(halStatus);
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Preenche uma tabela de lookup com pontos de uma onda senoidal pura.
+* @param lookupTable: array de destino (recomenda-se alinhado a 32 bytes).
+* @param length: numero de pontos que comporao um ciclo completo da onda.
+* @param minVoltage: tensao de vale da senoide em Volts.
+* @param maxVoltage: tensao de pico da senoide em Volts.
+* @param vRef: tensao de referencia analogica do DAC.
+* @retval eSTATUS_OK se calculada com sucesso, ou eSTATUS_INVALID_PARAM se erro.
+******************************************************************************/
+status_t BspDac_GenerateSineLookupTable(u16 *lookupTable, u32 length, f32 minVoltage, f32 maxVoltage, f32 vRef)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((lookupTable != dNULL) && (length > 0) && (vRef > 0.0f) && (maxVoltage >= minVoltage))
+    {
+        f32 amplitude = (maxVoltage - minVoltage) / 2.0f;
+        f32 offset = minVoltage + amplitude;
+        f32 twoPi = 6.28318530718f;
+        u32 i = 0;
+
+        for(i = 0; i < length; i++)
+        {
+            f32 angle = (twoPi * (f32)i) / (f32)length;
+            f32 voltage = offset + (amplitude * sinf(angle));
+
+            if(voltage < 0.0f)
+            {
+                voltage = 0.0f;
+            }
+            else if(voltage > vRef)
+            {
+                voltage = vRef;
+            }
+
+            f32 counts = (voltage * (f32)dBSP_DAC_MAX_COUNTS) / vRef;
+            lookupTable[i] = (u16)(counts + 0.5f);
+        }
+
+        ret = eSTATUS_OK;
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Preenche uma tabela de lookup com pontos de uma onda triangular.
+* @param lookupTable: array de destino (recomenda-se alinhado a 32 bytes).
+* @param length: numero de pontos de um ciclo completo.
+* @param minVoltage: tensao minima da onda em Volts.
+* @param maxVoltage: tensao maxima da onda em Volts.
+* @param vRef: tensao de referencia analogica do DAC.
+* @retval eSTATUS_OK se gerado com sucesso, ou eSTATUS_INVALID_PARAM.
+******************************************************************************/
+status_t BspDac_GenerateTriangleLookupTable(u16 *lookupTable, u32 length, f32 minVoltage, f32 maxVoltage, f32 vRef)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((lookupTable != dNULL) && (length >= 2) && (vRef > 0.0f) && (maxVoltage >= minVoltage))
+    {
+        u32 halfLength = length / 2;
+        f32 deltaUp = (maxVoltage - minVoltage) / (f32)halfLength;
+        f32 deltaDown = (maxVoltage - minVoltage) / (f32)(length - halfLength);
+        u32 i = 0;
+
+        for(i = 0; i < length; i++)
+        {
+            f32 voltage = 0.0f;
+            if(i < halfLength)
+            {
+                voltage = minVoltage + (deltaUp * (f32)i);
+            }
+            else
+            {
+                voltage = maxVoltage - (deltaDown * (f32)(i - halfLength));
+            }
+
+            if(voltage < 0.0f)
+            {
+                voltage = 0.0f;
+            }
+            else if(voltage > vRef)
+            {
+                voltage = vRef;
+            }
+
+            f32 counts = (voltage * (f32)dBSP_DAC_MAX_COUNTS) / vRef;
+            lookupTable[i] = (u16)(counts + 0.5f);
+        }
+
+        ret = eSTATUS_OK;
     }
 
     return ret;

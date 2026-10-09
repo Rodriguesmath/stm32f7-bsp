@@ -197,5 +197,69 @@ status_t BspAdc_ReadFilteredVoltage(bspAdc_t *dev, f32 *filteredVoltage);
 ******************************************************************************/
 status_t BspAdc_ResetFilter(bspAdc_t *dev);
 
+/******************************************************************************/
+/** @brief Inicia a amostragem continua de dados analogicos via DMA.
+* @param dev: ponteiro para a estrutura do ADC.
+* @param buffer: ponteiro para o buffer de destino alinhado a 32 bytes (u16).
+* @param length: quantidade total de amostras no buffer (ex: 256 ou 512).
+* @retval eSTATUS_OK se disparado com sucesso, ou codigo de erro.
+* @details Descarta a D-Cache (Invalidate) para a regiao do buffer e aciona
+* HAL_ADC_Start_DMA. O hardware preenche o buffer continuamente na cadencia
+* configurada pelo Timer no CubeMX sem gastar tempo de CPU.
+*
+* Exemplo de uso:
+* @code
+* dBSP_DMA_BUFFER_ALIGN u16 bufferAdcDma[512];
+* BspAdc_StartContinuousDma(&sensorAdc, bufferAdcDma, 512);
+* @endcode
+******************************************************************************/
+status_t BspAdc_StartContinuousDma(bspAdc_t *dev, u16 *buffer, u32 length);
+
+/******************************************************************************/
+/** @brief Encerra a amostragem continua por DMA.
+* @param dev: ponteiro para a estrutura do ADC.
+* @retval eSTATUS_OK se encerrado, ou codigo de erro.
+* @details Invoca HAL_ADC_Stop_DMA desligando o canal e parando as conversoes.
+*
+* Exemplo de uso:
+* @code
+* BspAdc_StopContinuousDma(&sensorAdc);
+* @endcode
+******************************************************************************/
+status_t BspAdc_StopContinuousDma(bspAdc_t *dev);
+
+/******************************************************************************/
+/** @brief Converte um bloco inteiro de amostras brutas para Volts de uma so vez.
+* @param dev: ponteiro para a estrutura do ADC.
+* @param rawBuffer: array com as amostras brutas de 12 bits preenchidas pelo DMA.
+* @param voltageBuffer: array de saida onde serao gravados os valores em Volts.
+* @param length: quantidade de amostras a converter.
+* @retval eSTATUS_OK se convertido com sucesso, ou codigo de erro.
+* @details Processa um lote de medicoes aplicando a escala de VRef em cada elemento,
+* muito conveniente para processamento de sinais apos uma captura por DMA.
+*
+* Exemplo de uso:
+* @code
+* f32 tensoes[256];
+* BspAdc_ConvertBufferToVoltages(&sensorAdc, bufferAdcDma, tensoes, 256);
+* @endcode
+******************************************************************************/
+status_t BspAdc_ConvertBufferToVoltages(const bspAdc_t *dev, const u16 *rawBuffer, f32 *voltageBuffer, u32 length);
+
+/******************************************************************************/
+/** @brief Calcula a media aritmetica de um bloco de amostras lido pelo DMA.
+* @param buffer: array com as amostras brutas.
+* @param length: quantidade de amostras no array.
+* @retval Valor medio calculado em contagens (u16).
+* @details Soma todas as amostras do bloco com acumulador de 64 bits para evitar
+* estouro de memoria e divide pelo total, proporcionando excelente rejeicao de ruido.
+*
+* Exemplo de uso:
+* @code
+* u16 mediaBloco = BspAdc_CalculateBufferAverage(bufferAdcDma, 512);
+* @endcode
+******************************************************************************/
+u16 BspAdc_CalculateBufferAverage(const u16 *buffer, u32 length);
+
 #endif /* _BSP_ADC_H_ */
 /** @} DOXYGEN GROUP TAG END OF FILE */

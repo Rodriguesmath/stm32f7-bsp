@@ -226,5 +226,68 @@ u16 BspUart_ReadLine(bspUart_t *dev, char *buffer, u16 maxLen);
 ******************************************************************************/
 void BspUart_RxInterruptHandler(bspUart_t *dev, u8 byte);
 
+/******************************************************************************/
+/** @brief Transmite um buffer de dados via DMA sem bloquear a CPU.
+* @param dev: ponteiro para a estrutura da UART.
+* @param buffer: ponteiro para os dados a serem transmitidos (recomenda-se alinhado a 32B).
+* @param size: quantidade de bytes a transmitir.
+* @retval eSTATUS_OK se disparado, eSTATUS_BUSY se o canal estiver ocupado.
+* @details Descarrega a D-Cache (Clean) automaticamente para garantir que a RAM
+* contenha os dados mais recentes gravados pela CPU e dispara HAL_UART_Transmit_DMA.
+*
+* Exemplo de uso:
+* @code
+* dBSP_DMA_BUFFER_ALIGN u8 pacote[256];
+* BspUart_SendBufferDma(&consoleUart, pacote, sizeof(pacote));
+* @endcode
+******************************************************************************/
+status_t BspUart_SendBufferDma(bspUart_t *dev, const u8 *buffer, u16 size);
+
+/******************************************************************************/
+/** @brief Verifica se a transmissao serial via DMA ainda esta em andamento.
+* @param dev: ponteiro para a estrutura da UART.
+* @retval true se estiver transmitindo, false se o transmissor estiver livre.
+* @details Consulta se a operacao anterior de DMA ja foi finalizada.
+*
+* Exemplo de uso:
+* @code
+* if(BspUart_IsTxBusy(&consoleUart) == false)
+* {
+*     BspUart_SendBufferDma(&consoleUart, novoPacote, tamanho);
+* }
+* @endcode
+******************************************************************************/
+bool BspUart_IsTxBusy(const bspUart_t *dev);
+
+/******************************************************************************/
+/** @brief Cancela uma transmissao serial via DMA em andamento.
+* @param dev: ponteiro para a estrutura da UART.
+* @retval eSTATUS_OK se cancelado, ou codigo de erro.
+* @details Invoca HAL_UART_AbortTransmit_IT desarmando o canal de envio.
+*
+* Exemplo de uso:
+* @code
+* BspUart_AbortTx(&consoleUart);
+* @endcode
+******************************************************************************/
+status_t BspUart_AbortTx(bspUart_t *dev);
+
+/******************************************************************************/
+/** @brief Inicia a recepcao por DMA com interrupcao por Linha Ociosa (IDLE Line).
+* @param dev: ponteiro para a estrutura da UART.
+* @param buffer: ponteiro para o buffer de destino alinhado.
+* @param maxBufferSize: capacidade maxima do buffer de recepcao.
+* @retval eSTATUS_OK se armado com sucesso, ou codigo de erro.
+* @details Utiliza HAL_UARTEx_ReceiveToIdle_DMA. Permite receber pacotes de
+* qualquer tamanho sem interrupcoes byte a byte, disparando apenas quando a linha silencia.
+*
+* Exemplo de uso:
+* @code
+* dBSP_DMA_BUFFER_ALIGN u8 rxDmaBuffer[128];
+* BspUart_StartReceiveToIdleDma(&consoleUart, rxDmaBuffer, sizeof(rxDmaBuffer));
+* @endcode
+******************************************************************************/
+status_t BspUart_StartReceiveToIdleDma(bspUart_t *dev, u8 *buffer, u16 maxBufferSize);
+
 #endif /* _BSP_UART_H_ */
 /** @} DOXYGEN GROUP TAG END OF FILE */

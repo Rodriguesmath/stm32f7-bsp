@@ -168,5 +168,74 @@ status_t BspDac_SetNormalized(bspDac_t *dev, f32 ratio);
 ******************************************************************************/
 status_t BspDac_Stop(bspDac_t *dev);
 
+/******************************************************************************/
+/** @brief Inicia a transmissao continua de forma de onda analogica via DMA.
+* @param dev: ponteiro para a estrutura do DAC.
+* @param lookupTable: array constante contendo os pontos da onda alinhado a 32 bytes (u16).
+* @param length: quantidade de pontos contidos na tabela.
+* @retval eSTATUS_OK se disparado com sucesso, ou codigo de erro.
+* @details Descarrega a D-Cache (Clean) para garantir integridade e inicia
+* HAL_DAC_Start_DMA. O hardware gera a forma de onda autonomamente em loop
+* acionado por Timer com ZERO ciclos de processamento da CPU.
+*
+* Exemplo de uso:
+* @code
+* dBSP_DMA_BUFFER_ALIGN u16 tabelaSenoide[128];
+* BspDac_GenerateSineLookupTable(tabelaSenoide, 128, 0.5f, 2.5f, 3.3f);
+* BspDac_StartWaveformDma(&saidaDac, tabelaSenoide, 128);
+* @endcode
+******************************************************************************/
+status_t BspDac_StartWaveformDma(bspDac_t *dev, const u16 *lookupTable, u32 length);
+
+/******************************************************************************/
+/** @brief Encerra a geracao continua de forma de onda via DMA.
+* @param dev: ponteiro para a estrutura do DAC.
+* @retval eSTATUS_OK se encerrado, ou codigo de erro.
+* @details Invoca HAL_DAC_Stop_DMA desativando o fluxo de dados.
+*
+* Exemplo de uso:
+* @code
+* BspDac_StopWaveformDma(&saidaDac);
+* @endcode
+******************************************************************************/
+status_t BspDac_StopWaveformDma(bspDac_t *dev);
+
+/******************************************************************************/
+/** @brief Preenche uma tabela de lookup com pontos de uma onda senoidal pura.
+* @param lookupTable: array de destino (recomenda-se alinhado a 32 bytes).
+* @param length: numero de pontos que comporao um ciclo completo da onda (ex: 64, 128).
+* @param minVoltage: tensao de vale da senoide em Volts (ex: 0.5V).
+* @param maxVoltage: tensao de pico da senoide em Volts (ex: 2.5V).
+* @param vRef: tensao de referencia analogica do DAC (ex: 3.3V).
+* @retval eSTATUS_OK se calculada com sucesso, ou eSTATUS_INVALID_PARAM se erro.
+* @details Calcula os pontos matematicos da funcao seno e converte diretamente
+* para contagens de 12 bits com saturacao automatica dentro da faixa segura.
+*
+* Exemplo de uso:
+* @code
+* u16 senoide[64];
+* BspDac_GenerateSineLookupTable(senoide, 64, 0.2f, 3.0f, 3.3f);
+* @endcode
+******************************************************************************/
+status_t BspDac_GenerateSineLookupTable(u16 *lookupTable, u32 length, f32 minVoltage, f32 maxVoltage, f32 vRef);
+
+/******************************************************************************/
+/** @brief Preenche uma tabela de lookup com pontos de uma onda triangular.
+* @param lookupTable: array de destino (recomenda-se alinhado a 32 bytes).
+* @param length: numero de pontos de um ciclo completo.
+* @param minVoltage: tensao minima da onda em Volts.
+* @param maxVoltage: tensao maxima da onda em Volts.
+* @param vRef: tensao de referencia analogica do DAC.
+* @retval eSTATUS_OK se gerado com sucesso, ou eSTATUS_INVALID_PARAM.
+* @details Gera rampa linear de subida e descida simetrica entre minVoltage e maxVoltage.
+*
+* Exemplo de uso:
+* @code
+* u16 triangular[64];
+* BspDac_GenerateTriangleLookupTable(triangular, 64, 0.0f, 3.3f, 3.3f);
+* @endcode
+******************************************************************************/
+status_t BspDac_GenerateTriangleLookupTable(u16 *lookupTable, u32 length, f32 minVoltage, f32 maxVoltage, f32 vRef);
+
 #endif /* _BSP_DAC_H_ */
 /** @} DOXYGEN GROUP TAG END OF FILE */

@@ -26,6 +26,7 @@
 * INCLUDES
 ******************************************************************************/
 #include "BspAdc.h"
+#include "BspDma.h"
 
 #include <string.h>
 
@@ -91,6 +92,20 @@ __attribute__((weak)) uint32_t HAL_ADC_GetValue(ADC_HandleTypeDef *hadc)
 }
 
 __attribute__((weak)) HAL_StatusTypeDef HAL_ADC_Stop(ADC_HandleTypeDef *hadc)
+{
+    (void)hadc;
+    return HAL_OK;
+}
+
+__attribute__((weak)) HAL_StatusTypeDef HAL_ADC_Start_DMA(ADC_HandleTypeDef *hadc, uint32_t *pData, uint32_t Length)
+{
+    (void)hadc;
+    (void)pData;
+    (void)Length;
+    return HAL_OK;
+}
+
+__attribute__((weak)) HAL_StatusTypeDef HAL_ADC_Stop_DMA(ADC_HandleTypeDef *hadc)
 {
     (void)hadc;
     return HAL_OK;
@@ -303,6 +318,101 @@ status_t BspAdc_ResetFilter(bspAdc_t *dev)
     }
 
     return ret;
+}
+
+/******************************************************************************/
+/** @brief Inicia a amostragem continua de dados analogicos via DMA.
+* @param dev: ponteiro para a estrutura do ADC.
+* @param buffer: ponteiro para o buffer de destino alinhado a 32 bytes (u16).
+* @param length: quantidade total de amostras no buffer.
+* @retval eSTATUS_OK se disparado com sucesso, ou codigo de erro.
+******************************************************************************/
+status_t BspAdc_StartContinuousDma(bspAdc_t *dev, u16 *buffer, u32 length)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (buffer != dNULL) && (length > 0) && (dev->isInitialized == true))
+    {
+        // Descarta linhas de cache antigas antes do DMA preencher o buffer
+        BspDma_CacheInvalidate((void *)(uintptr_t)buffer, length * sizeof(u16));
+
+        HAL_StatusTypeDef halStatus = HAL_ADC_Start_DMA(dev->hadc, (uint32_t *)(uintptr_t)buffer, length);
+        ret = BspAdc_MapHalStatus(halStatus);
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Encerra a amostragem continua por DMA.
+* @param dev: ponteiro para a estrutura do ADC.
+* @retval eSTATUS_OK se encerrado, ou codigo de erro.
+******************************************************************************/
+status_t BspAdc_StopContinuousDma(bspAdc_t *dev)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (dev->hadc != dNULL))
+    {
+        HAL_StatusTypeDef halStatus = HAL_ADC_Stop_DMA(dev->hadc);
+        ret = BspAdc_MapHalStatus(halStatus);
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Converte um bloco inteiro de amostras brutas para Volts de uma so vez.
+* @param dev: ponteiro para a estrutura do ADC.
+* @param rawBuffer: array com as amostras brutas de 12 bits preenchidas pelo DMA.
+* @param voltageBuffer: array de saida onde serao gravados os valores em Volts.
+* @param length: quantidade de amostras a converter.
+* @retval eSTATUS_OK se convertido com sucesso, ou codigo de erro.
+******************************************************************************/
+status_t BspAdc_ConvertBufferToVoltages(const bspAdc_t *dev, const u16 *rawBuffer, f32 *voltageBuffer, u32 length)
+{
+    status_t ret = eSTATUS_INVALID_PARAM;
+
+    if((dev != dNULL) && (rawBuffer != dNULL) && (voltageBuffer != dNULL) && (length > 0))
+    {
+        f32 scale = dev->vRef / (f32)dBSP_ADC_MAX_COUNTS;
+        u32 i = 0;
+
+        for(i = 0; i < length; i++)
+        {
+            voltageBuffer[i] = (f32)rawBuffer[i] * scale;
+        }
+
+        ret = eSTATUS_OK;
+    }
+
+    return ret;
+}
+
+/******************************************************************************/
+/** @brief Calcula a media aritmetica de um bloco de amostras lido pelo DMA.
+* @param buffer: array com as amostras brutas.
+* @param length: quantidade de amostras no array.
+* @retval Valor medio calculado em contagens (u16).
+******************************************************************************/
+u16 BspAdc_CalculateBufferAverage(const u16 *buffer, u32 length)
+{
+    u16 avg = 0;
+
+    if((buffer != dNULL) && (length > 0))
+    {
+        u64 sum = 0;
+        u32 i = 0;
+
+        for(i = 0; i < length; i++)
+        {
+            sum += buffer[i];
+        }
+
+        avg = (u16)(sum / (u64)length);
+    }
+
+    return avg;
 }
 
 /*******************************************************************************
