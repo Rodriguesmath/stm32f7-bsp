@@ -1,0 +1,32 @@
+# Build outputs
+Debug/
+Release/
+build/
+bin/
+obj/
+
+# Compiler and Linker artifacts
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.srec
+*.su
+*.d
+*.map
+*.a
+*.lib
+
+# IDE and Editor artifacts
+.metadata/
+.recommenders/
+*.launch
+*.orig
+*~
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
