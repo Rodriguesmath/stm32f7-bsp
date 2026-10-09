@@ -52,7 +52,8 @@ stm32f7-bsp/
 ├── Drivers/               # Drivers modulares desacoplados (HAL Wrappers)
 │   ├── BspUart/           # Driver de comunicacao serial (UART/USART)
 │   ├── BspAdc/            # Driver de aquisicao analogica (ADC)
-│   └── BspDac/            # Driver de conversao digital-analogica (DAC)
+│   ├── BspDac/            # Driver de conversao digital-analogica (DAC)
+│   └── BspSync/           # Sincronismo e controle fiel ao CMSIS-RTOS v2
 ├── Bsp/                   # Camada unificada de hardware (Secao 4.12 da Norma)
 │   ├── Bsp.h              # Ponto de acesso unico da aplicacao (Bsp_Init)
 │   └── Bsp.c              # Inicializacoes de baixo nivel e despacho de ISRs

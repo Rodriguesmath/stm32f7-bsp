@@ -6,12 +6,14 @@ INCLUDES = -ICommon \
            -IDrivers/BspUart \
            -IDrivers/BspAdc \
            -IDrivers/BspDac \
+           -IDrivers/BspSync \
            -IBsp \
            -ITemplates
 
 SRCS = Drivers/BspUart/BspUart.c \
        Drivers/BspAdc/BspAdc.c \
        Drivers/BspDac/BspDac.c \
+       Drivers/BspSync/BspSync.c \
        Bsp/Bsp.c \
        Templates/LibModel.c \
        Examples/main_example.c
