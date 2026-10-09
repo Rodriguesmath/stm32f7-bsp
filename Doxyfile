@@ -1,0 +1,34 @@
+# Doxyfile 1.0.0 para STM32F7 Generic BSP Libraries
+
+PROJECT_NAME           = "STM32F7 Generic BSP Libraries"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "Bibliotecas de alto nivel desacopladas para STM32F7 e Nucleo-F767ZI"
+OUTPUT_DIRECTORY       = Doc
+OUTPUT_LANGUAGE        = Brazilian
+
+# Entrada de arquivos
+INPUT                  = README.md Common Templates Drivers Bsp Examples
+USE_MDFILE_AS_MAINPAGE = README.md
+RECURSIVE              = YES
+FILE_PATTERNS          = *.c *.h *.md
+
+# Otimizacoes para linguagem C
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+SHOW_INCLUDE_FILES     = YES
+JAVADOC_AUTOBRIEF      = YES
+
+# Geracao de saida
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+GENERATE_LATEX         = NO
+
+# Warnings
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES

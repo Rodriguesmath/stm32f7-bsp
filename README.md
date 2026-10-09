@@ -40,6 +40,8 @@ stm32f7-bsp/
 ├── .editorconfig          # Configuracao automatica de formatacao (4 espacos, UTF-8)
 ├── .clang-format          # Formatador de codigo C (estilo Allman, sem tab)
 ├── .gitignore             # Filtro de arquivos de compilacao e temporarios
+├── Doxyfile               # Configuracao para geracao automatica de documentacao HTML
+├── Makefile               # Script de compilacao e validacao (make, make test, make doc)
 ├── README.md              # Este guia de uso
 ├── Common/                # Tipos e estruturas compartilhadas
 │   ├── BspTypes.h         # Tipos u8, u16, u32, s8, s16, s32, bool, dTRUE, dFALSE
@@ -47,12 +49,15 @@ stm32f7-bsp/
 ├── Templates/             # Modelos oficiais para novos modulos
 │   ├── LibModel.h         # Template base de header (.h)
 │   └── LibModel.c         # Template base de source (.c)
-└── Drivers/               # Drivers modulares desacoplados (HAL Wrappers)
-    ├── BspUart/           # Driver de comunicacao serial (UART/USART)
-    ├── BspAdc/            # Driver de aquisicao analogica (ADC)
-    ├── BspDac/            # Driver de conversao digital-analogica (DAC)
-    ├── BspDma/            # Gerenciador de memoria e cache para DMA
-    └── BspSync/           # Abstracao leve de primitivas de sincronismo
+├── Drivers/               # Drivers modulares desacoplados (HAL Wrappers)
+│   ├── BspUart/           # Driver de comunicacao serial (UART/USART)
+│   ├── BspAdc/            # Driver de aquisicao analogica (ADC)
+│   └── BspDac/            # Driver de conversao digital-analogica (DAC)
+├── Bsp/                   # Camada unificada de hardware (Secao 4.12 da Norma)
+│   ├── Bsp.h              # Ponto de acesso unico da aplicacao (Bsp_Init)
+│   └── Bsp.c              # Inicializacoes de baixo nivel e despacho de ISRs
+└── Examples/              # Exemplos de uso pratico para a turma
+    └── main_example.c     # Integracao demonstrativa de UART + ADC + DAC
 ```
 
 ---
