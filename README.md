@@ -64,25 +64,106 @@ stm32f7-bsp/
 
 ---
 
-## 3. Como Integrar em Projetos STM32CubeMX / CubeIDE
+## 3. Como Importar e Usar em Projetos STM32CubeMX / CubeIDE
 
-Para usar estas bibliotecas em qualquer projeto de firmware da turma:
+Siga o passo a passo abaixo para importar esta biblioteca em qualquer projeto recém-gerado pelo STM32CubeMX no STM32CubeIDE:
 
-1. **Adicionar como Submódulo Git:**
-   Dentro da pasta raiz do seu projeto STM32, crie a pasta `Libs` e vincule este repositório:
-   ```bash
-   git submodule add <URL_DO_REPOSITORIO> Libs/stm32f7-bsp
-   ```
+### Fase 1: Baixar a biblioteca para o projeto
+Abra o terminal na pasta raiz do seu projeto STM32 e execute:
 
-2. **Configurar no STM32CubeIDE:**
-   * Clique com botão direito no projeto > **Properties** > **C/C++ General** > **Paths and Symbols**:
-     * **Source Location:** Adicione a pasta `Libs/stm32f7-bsp`.
-     * **Includes (GNU C):** Adicione:
-       * `Libs/stm32f7-bsp/Common`
-       * `Libs/stm32f7-bsp/Drivers/<ModuloDesejado>`
+```bash
+# 1. Cria a pasta Libs (se ainda nao existir)
+mkdir -p Libs
 
-3. **Atualização em Grupo:**
-   Quando correções ou novos drivers forem publicados:
-   ```bash
-   git submodule update --remote
-   ```
+# 2. Adiciona a biblioteca como submodulo Git (Recomendado)
+git submodule add https://github.com/Rodriguesmath/stm32f7-bsp.git Libs/stm32f7-bsp
+
+# OU clone diretamente se nao estiver usando controle de versao no projeto:
+# git clone https://github.com/Rodriguesmath/stm32f7-bsp.git Libs/stm32f7-bsp
+```
+
+---
+
+### Fase 2: Configurar o STM32CubeIDE (Apenas 2 ajustes)
+
+No **STM32CubeIDE**, clique com o botão direito no nome do projeto (na árvore à esquerda) e selecione **Properties**:
+
+1. **Configurar o "Source Location" (Para compilar os arquivos `.c`):**
+   * Vá em **C/C++ General** > **Paths and Symbols**;
+   * Clique na aba **Source Location**;
+   * Clique no botão **Add Folder...**;
+   * Selecione a pasta **`Libs`** e confirme em **OK**.
+   *(Isso avisa ao compilador GCC para incluir e compilar todos os fontes dentro de `Libs`).*
+
+2. **Configurar os "Include Paths" (Para localizar os arquivos `.h`):**
+   * Na mesma janela de *Paths and Symbols*, clique na aba **Includes**;
+   * Selecione a linguagem **GNU C**;
+   * Clique em **Add...** > depois clique em **Workspace...**;
+   * Adicione os caminhos dos módulos desejados:
+     * `/${ProjName}/Libs/stm32f7-bsp/Common`
+     * `/${ProjName}/Libs/stm32f7-bsp/Drivers/BspUart`
+     * `/${ProjName}/Libs/stm32f7-bsp/Drivers/BspAdc`
+     * `/${ProjName}/Libs/stm32f7-bsp/Drivers/BspDac`
+     * `/${ProjName}/Libs/stm32f7-bsp/Drivers/BspDma`
+     * `/${ProjName}/Libs/stm32f7-bsp/Drivers/BspSync`
+   * Clique em **Apply and Close**.
+
+---
+
+### Fase 3: Usar no código (`Core/Src/main.c`)
+
+No arquivo `main.c` gerado pelo CubeMX, insira as chamadas nas tags de usuário reservadas:
+
+```c
+/* USER CODE BEGIN Includes */
+#include "BspUart.h"
+#include "BspAdc.h"
+#include "BspDac.h"
+/* USER CODE END Includes */
+
+/* USER CODE BEGIN PV */
+bspUart_t console;
+bspAdc_t  sensor;
+/* USER CODE END PV */
+
+int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+
+  /* Inicializacoes de baixo nivel geradas pelo CubeMX */
+  MX_GPIO_Init();
+  MX_USART3_UART_Init();
+  MX_ADC1_Init();
+
+  /* USER CODE BEGIN 2 */
+  // Conecte os handles gerados pelo CubeMX as nossas bibliotecas:
+  BspUart_Init(&console, &huart3);
+  BspAdc_Init(&sensor, &hadc1, 3.3f);
+
+  BspUart_SendString(&console, "Biblioteca BSP importada com sucesso!\r\n");
+  /* USER CODE END 2 */
+
+  while (1)
+  {
+    /* USER CODE BEGIN 3 */
+    f32 tensao = 0.0f;
+    if (BspAdc_ReadFilteredVoltage(&sensor, &tensao) == eSTATUS_OK)
+    {
+        BspUart_Printf(&console, "Tensao lida: %.2f V\r\n", tensao);
+    }
+    HAL_Delay(500);
+    /* USER CODE END 3 */
+  }
+}
+```
+
+---
+
+### Fase 4: Atualizações em Grupo (Git)
+
+Quando você ou qualquer colega adicionar novas funções ou melhorias ao repositório central:
+```bash
+git submodule update --remote
+```
+Todos os projetos vinculados recebem a versão atualizada instantaneamente!
